@@ -5,8 +5,10 @@ Jinja2==2.11.1
 MarkupSafe==1.1.1
 numpy==1.18.1
 opencv-python==4.2.0.32
+pafy==0.5.5
 pytube3==9.6.4
 scenedetect==0.5.1.1
 tqdm==4.43.0
 typing-extensions==3.7.4.1
 Werkzeug==1.0.0
+youtube-dl==2020.2.16
