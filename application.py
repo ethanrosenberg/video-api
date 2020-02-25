@@ -1,13 +1,14 @@
 from flask import Flask
 from pytube import YouTube
 
+from api_test import find_scenes
+
 
 application = Flask(__name__)
 
 @application.route("/")
 def hello():
-    yt = YouTube('https://www.youtube.com/watch?v=BGLTLitLUAo&t=0s')
-    return yt.title
+    return " ".join(find_scenes("sample_video.mp4"))
 
 if __name__ == "__main__":
     application.debug = True
