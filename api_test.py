@@ -31,20 +31,30 @@ def process_youtube_video(youtube_url):
     cap=cv2.VideoCapture(best.url)
 
     sm = SceneManager()
+
     sm.add_detector(ContentDetector())
 
     try:
         video_fps = cap.get(cv2.CAP_PROP_FPS)
-        duration = FrameTimecode('00:00:05', video_fps)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count/video_fps
+        dur = FrameTimecode(duration, video_fps)
 
-        num_frames = sm.detect_scenes(frame_source=cap, end_time=duration)
+        num_frames = sm.detect_scenes(frame_source=cap, end_time=dur)
 
-        assert num_frames == duration.get_frames()
+        #base_timecode = FrameTimecode('00:00:05', fps=video_fps)
+        scene_list = sm.get_scene_list(dur)
+        print("Scene List Count: " + str(len(scene_list)))
+
+        result_urls = generate_images(cap, scene_list, 1, "testvid")
+
 
     finally:
         cap.release()
 
-    return str(num_frames)
+    #return urls
+    return result_urls
+
 
 def randomword(length):
    letters = string.ascii_lowercase
