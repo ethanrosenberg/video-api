@@ -16,6 +16,8 @@ import math
 import random, string
 from datetime import datetime
 
+import boto3
+
 # For content-aware scene detection:
 from scenedetect.detectors.content_detector import ContentDetector
 from scenedetect.platform import get_cv2_imwrite_params
@@ -66,14 +68,28 @@ def test_scenes(url):
         scene_list = sm.get_scene_list(dur)
         print("Scene List Count: " + str(len(scene_list)))
 
-        result = generate_images(cap, scene_list, 1, "testvid")
+        result_urls = generate_images(cap, scene_list, 1, "testvid")
+
+        #urls = []
+
+        #s3 = boto3.client(
+            #'s3',
+            #aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            #aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+        #)
+
+        #for key in s3.list_objects(Bucket='motion-snapshots')['Contents']:
+            #print(key['Key'])
+            #urls.append(str(key['Key']))
+
         #assert num_frames == duration.get_frames()
 
     finally:
         cap.release()
 
-
-    return " ".join(str(scene_list))
+    #return urls
+    return result_urls
+    #return " ".join(str(scene_list))
 
 def find_scenes(video_path):
     # type: (str) -> List[Tuple[FrameTimecode, FrameTimecode]]
@@ -200,7 +216,7 @@ def generate_images(cap, scene_list, num_images = 1, video_name = "testvid"):
             timecode_list[i].append(end_time - 1)
 
 
-    codes = []
+    urls = []
 
     #image_timecode = "00:00:06.480"
 
@@ -208,29 +224,62 @@ def generate_images(cap, scene_list, num_images = 1, video_name = "testvid"):
     #millisec = dt_obj.timestamp() * 1000
     #print(str(image_timecode) + str(millisec))
 
-    for i in timecode_list:
-        for j, image_timecode in enumerate(timecode_list[i]):
+    # Let's use Amazon S3
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    )
+
+    #for key in s3.list_objects(Bucket='motion-snapshots')['Contents']:
+        #print(key['Key'])
+        #urls.append(str(key['Key']))
 
 
-            cap.set(cv2.CAP_PROP_POS_MSEC,get_timestamp_to_milliseconds(str(image_timecode)))
-            #cap.set(cv2.CAP_PROP_POS_MSEC,image_timecode.get_frames())
 
-            codes.append(str(image_timecode))
-            #video_manager.seek(image_timecode)
-            #video_manager.grab()
-            #ret_val, frame_im = video_manager.retrieve()
-            ret,frame = cap.read()                   # Retrieves the frame at the specified second
+    try:
 
-            if ret:
-                cv2.imwrite("images/" + randomword(10) + ".jpg", frame)
-            else:
-                completed = False
-                break
+        for i in timecode_list:
+            for j, image_timecode in enumerate(timecode_list[i]):
 
-    if not completed:
-        logging.error('Could not generate all output images.')
 
+                cap.set(cv2.CAP_PROP_POS_MSEC,get_timestamp_to_milliseconds(str(image_timecode)))
+                #cap.set(cv2.CAP_PROP_POS_MSEC,image_timecode.get_frames())
+
+                #urls.append(str(image_timecode))
+                #video_manager.seek(image_timecode)
+                #video_manager.grab()
+                #ret_val, frame_im = video_manager.retrieve()
+                ret,frame = cap.read()                   # Retrieves the frame at the specified second
+
+                if ret:
+
+                    imageName =  randomword(10) + ".jpg"
+                    image_string = cv2.imencode('.jpg', frame)[1].tostring()
+                    s3.put_object(Bucket="motion-snapshots", Key = "images/" + imageName, Body=image_string, ACL='public-read', ContentType='image/jpeg')
+                    #location = boto3.client('s3').get_bucket_location(Bucket="motion-snapshots")['LocationConstraint']
+                    url = "https://s3-%s.amazonaws.com/%s/%s" % ("us-east-2", "motion-snapshots", "images/" + imageName)
+                    #url = "https://s3-%s.amazonaws.com/%s/%s" % (location, "motion-snapshots", "images/" + imageName)
+                    print("Saved Image: " + str(url))
+                    urls.append(url)
+
+                else:
+                    completed = False
+                    break
+
+        #if not completed:
+            #logging.error('Could not generate all output images.')
+    #except WritingError as er:
+        #logging.error(er)
+
+    finally:
+        return urls
 
     #video_manager.release()
 
-    return " ".join(str(codes))
+    #return " ".join(str(codes))
+
+    #bucket_location = s3_client.get_bucket_location(Bucket='motion-snapshots')
+    #url = "https://s3.{0}.amazonaws.com/{1}/{2}".format(s3.meta.endpoint_url, 'motion-snapshots', "images/" + imageName)
+                #cv2.imwrite("images/" + imageName, frame)
+    #file_url = '%s/%s/%s' % (s3.meta.endpoint_url, "motion-snapshots", "images/" + imageName)
