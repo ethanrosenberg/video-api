@@ -12,6 +12,10 @@ application = Flask(__name__)
 def welcome():
     return "Please request /process to get started."
 
+@application.route("/error")
+def error():
+    return "Error"
+
 @application.route("/process")
 def hello():
     #return " ".join(find_scenes("https://motion-snapshots.s3.us-east-2.amazonaws.com/sample_video.mp4"))
